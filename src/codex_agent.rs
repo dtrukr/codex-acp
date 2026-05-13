@@ -15,8 +15,8 @@ use agent_client_protocol as acp;
 use codex_config::{McpServerConfig, McpServerTransportConfig};
 use codex_core::{
     NewThread, RolloutRecorder, SortDirection, StateDbHandle, ThreadManager, ThreadSortKey,
-    config::Config, find_thread_path_by_id_str, init_state_db, parse_cursor,
-    resolve_installation_id, thread_store_from_config,
+    agent_graph_store_from_state_db, config::Config, find_thread_path_by_id_str, init_state_db,
+    parse_cursor, thread_store_from_config,
 };
 use codex_exec_server::{EnvironmentManager, EnvironmentManagerArgs, ExecServerRuntimePaths};
 use codex_login::{
@@ -77,7 +77,9 @@ impl CodexAgent {
 
         let client_capabilities: Arc<Mutex<ClientCapabilities>> = Arc::default();
         let session_roots: Arc<Mutex<HashMap<SessionId, PathBuf>>> = Arc::default();
-        let state_db = init_state_db(&config).await;
+        let state_db = init_state_db(&config)
+            .await
+            .ok_or_else(|| std::io::Error::other("failed to initialize sqlite state db"))?;
         let environment_manager = Arc::new(
             EnvironmentManager::new(EnvironmentManagerArgs::new(ExecServerRuntimePaths::new(
                 std::env::current_exe()?,
@@ -86,23 +88,23 @@ impl CodexAgent {
             .await,
         );
         let thread_store = thread_store_from_config(&config, state_db.clone());
-        let installation_id = resolve_installation_id(&config.codex_home).await?;
+        let agent_graph_store = agent_graph_store_from_state_db(state_db.clone());
         let thread_manager = ThreadManager::new(
             &config,
             auth_manager.clone(),
             SessionSource::Unknown,
             environment_manager,
             None,
-            thread_store,
             state_db.clone(),
-            installation_id,
+            thread_store,
+            agent_graph_store,
         );
         Ok(Self {
             auth_manager,
             client_capabilities,
             config,
             thread_manager,
-            state_db,
+            state_db: Some(state_db),
             sessions: Arc::default(),
             session_roots,
         })
