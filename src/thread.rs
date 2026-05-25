@@ -1458,7 +1458,7 @@ impl PromptState {
             // Ignore these events
             EventMsg::AgentReasoningRawContent(..)
             | EventMsg::AutoresearchState(..)
-            | EventMsg::RollingTurnSummary(..)
+            | EventMsg::ThreadNameUpdated(..)
             | EventMsg::GetHistoryEntryResponse(..)
             | EventMsg::McpListToolsResponse(..)
             | EventMsg::ThreadRolledBack(..)
